@@ -24,8 +24,8 @@ player_attr_2 db %00000000
 player_attr_3 db PLAYER_DEFAULT_ATTR3
 player_attr_4 db %00100000
 
-legs1_attr_3 db %11000010
-legs2_attr_3 db %11000011
+legsA_attr_3 db %11000010
+legsB_attr_3 db %11000011
 
 
 player_animation_timer db 0
@@ -154,7 +154,7 @@ player_init_sprites:
     nextreg $37,a
 
     ;a3
-    ld a,(legs1_attr_3)
+    ld a,(legsA_attr_3)
     nextreg $38,a
 
     ;a4
@@ -181,7 +181,7 @@ player_init_sprites:
     nextreg $37,a
 
     ;a3
-    ld a,(legs2_attr_3)
+    ld a,(legsB_attr_3)
     nextreg $38,a
 
     ;a4
@@ -272,7 +272,7 @@ player_draw:
     nextreg $37,a
 
     ;a3
-    ld a,(legs1_attr_3)
+    ld a,(legsA_attr_3)
     nextreg $38,a
 
     ;a4
@@ -299,7 +299,7 @@ player_draw:
     nextreg $37,a
 
     ;a3
-    ld a,(legs2_attr_3)
+    ld a,(legsB_attr_3)
     nextreg $38,a
 
     ;a4
@@ -340,7 +340,26 @@ player_update_idle:
     cp 15 ;frame time 
     call nc, player_animate_idle
 
+    
+    ld a,(keypressed_Space)
+    cp TRUE
+    jr z,player_jump_start
+
+    ld a,(keypressed_A)
+    cp TRUE
+    jr z,.set_state_walking
+
+    ld a,(keypressed_D)
+    cp TRUE
+    jr z,.set_state_walking
+
     ret
+.set_state_walking:
+    ld a,WALKING
+    ld (player_animation_state),a
+    ret
+
+
 
 player_walking_start:
     ld a,(player_animation_state)
@@ -358,8 +377,6 @@ player_walking_start:
 
     ret
 player_update_walking:
-    
-
     call check_grounded
 
     ld a,(keypressed_Space)
@@ -377,8 +394,6 @@ player_update_walking:
     ;else idle walking state...
     ld a,IDLE
     ld (player_animation_state),a
-    
-
 
     ret
 
@@ -391,8 +406,11 @@ player_jump_start:
     cp JUMPING
     ret z
 
-    ld a,PLAYER_JUMP_ATTR3
-    ld (player_attr_3),a
+    ld a,WBOY_FIRST_JUMP
+    add a,PLAYER_DEFAULT_ATTR3
+    ld (legsA_attr_3),a
+    inc a
+    ld (legsB_attr_3),a
 
     ld a,JUMPING
     ld (player_animation_state),a
@@ -402,10 +420,6 @@ player_jump_start:
 
     ld a,UP
     ld (player_jump_direction),a
-
-    jp player_update
-
-
 player_update_jumping:  
     ld a,(keypressed_A)
     cp TRUE
@@ -568,13 +582,6 @@ p_move_right
 
 
 
-
-
-
-
-
-
-
 player_animate_idle:
     xor a
     ld (player_animation_timer),a
@@ -583,47 +590,53 @@ player_animate_idle:
     cp IDLE
     ret nz
   
-    ld a,(legs1_attr_3)
+    ld a,(legsA_attr_3)
     and %00111111 ;mask out top 2 bits
-    cp 4        ;WBOY_ANIMATION_IDLE+((WBOY_FRAMECOUNT_IDLE-1)*WBOY_BODY_SIZE)
-    jp z,plyr_set_idle_startframe
+    cp WBOY_FINAL_IDLE ;Final Idle 'A' pattern
+    jr nc,plyr_set_idle_firstframe
    
-    add a,2
+    add a,WBOY_BODY_SIZE
     add a,PLAYER_DEFAULT_ATTR3
-    ld (legs1_attr_3),a
+    ld (legsA_attr_3),a
     inc a
-    ld (legs2_attr_3),a
+    ld (legsB_attr_3),a
 
     ret
 
-plyr_set_idle_startframe: 
-    ld a,2
+plyr_set_idle_firstframe: 
+    ld a,WBOY_FIRST_IDLE
     add a,PLAYER_DEFAULT_ATTR3
-    ld (legs1_attr_3),a
+    ld (legsA_attr_3),a
     inc a
-    ld (legs2_attr_3),a
+    ld (legsB_attr_3),a
     ret
 
 player_animate_walk:
-    ; xor a
-    ; ld (player_animation_timer),a
+    xor a
+    ld (player_animation_timer),a
 
-    ; ld a,(player_animation_state)
-    ; cp WALKING
-    ; ret nz
+    ld a,(player_animation_state)
+    cp WALKING
+    ret nz
     
-    ; ld a,(player_attr_3)
-    ; and %00111111 ;mask out top 2 bits
-    ; cp SPRITE_PLAYER_COUNT-SPRITE_SEGMENTS
-    ; jp z,player_set_to_default_frame
-    ; add a,SPRITE_SEGMENTS
-    ; add a,PLAYER_DEFAULT_ATTR3
-    ; ld (player_attr_3),a
+    ld a,(legsA_attr_3)
+    and %00111111 ;mask out top 2 bits
+    cp WBOY_FINAL_WALK ;final walk 'A' pattern
+    jp z,plyr_set_walking_firstframe
+
+    add a,WBOY_BODY_SIZE
+    add a,PLAYER_DEFAULT_ATTR3
+    ld (legsA_attr_3),a
+    inc a
+    ld (legsB_attr_3),a
     ret
 
-player_set_to_default_frame:
-    ld a,PLAYER_DEFAULT_ATTR3
-    ld (player_attr_3),a
+plyr_set_walking_firstframe:
+    ld a,WBOY_FIRST_WALK
+    add a,PLAYER_DEFAULT_ATTR3
+    ld (legsA_attr_3),a
+    inc a
+    ld (legsB_attr_3),a
     ret
 
 
@@ -642,7 +655,6 @@ player_calculate_world_position:
  
 p_wp_l:
     ld hl,(px)
-    ; add hl,32
     ld a,l
     and %11110000
     rrca
