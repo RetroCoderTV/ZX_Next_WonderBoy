@@ -24,6 +24,9 @@ player_attr_2 db %00000000
 player_attr_3 db PLAYER_DEFAULT_ATTR3
 player_attr_4 db %00100000
 
+
+;relative sprites:
+headB_attr_3 db %11000001
 legsA_attr_3 db %11000010
 legsB_attr_3 db %11000011
 
@@ -40,7 +43,7 @@ ATTACKING equ 0xC
 CLIMBING equ 0xD
 
 player_animation_state db JUMPING
-
+player_animation_state_prev db JUMPING
 
 vy dw 0
 
@@ -193,7 +196,7 @@ player_init_sprites:
 
 
 player_draw:
-       ld a,PLAYER_SLOT
+    ld a,PLAYER_SLOT
     nextreg $34,a
 
     ;Ax
@@ -246,7 +249,7 @@ player_draw:
     nextreg $37,a
 
     ;a3
-    ld a,%11000001
+    ld a,(headB_attr_3)
     nextreg $38,a
 
     ;a4
@@ -320,9 +323,12 @@ player_update:
 
     ld a,(keypressed_Q)
     cp TRUE
-    call z,throw_hammer
+    call z,player_attacking_start
+
 
     ld a,(player_animation_state)
+    cp ATTACKING
+    jp z, player_update_attacking
     cp WALKING
     jp z, player_update_walking
     cp JUMPING
@@ -332,6 +338,87 @@ player_update:
 
 
     ret
+
+
+
+player_attacking_start:
+    
+    ld a,(player_animation_state)
+    cp ATTACKING
+    jr z, player_update_attacking
+    ;cache previous anim state:
+    ld (player_animation_state_prev),a
+
+    
+    call player_update_attacking.showframe1
+
+    ld a,ATTACKING
+    ld (player_animation_state),a
+    ret
+
+player_update_attacking:
+    ld a,(keypressed_Q_Held)
+    cp TRUE
+    jr z,.showframe1
+    call nz,.showframe2
+
+    call throw_hammer
+    ld a,(player_animation_state_prev)
+
+    cp IDLE
+    jp z,player_idle_start
+    cp WALKING
+    jp z,player_idle_start
+    ;if state was jumping, have to set state but not allow extra jump
+    ;jp jump/falling
+    ret
+    
+.showframe1:
+    ld a,WBOY_THROW_A
+    add a,PLAYER_DEFAULT_ATTR3
+    ld (player_attr_3),a
+    ld a,%11000001
+    ld (headB_attr_3),a
+    inc a
+    ld (legsA_attr_3),a
+    inc a
+    ld (legsB_attr_3),a
+    ret
+.showframe2:
+    ld a,WBOY_THROW_B
+    add a,PLAYER_DEFAULT_ATTR3
+    ld (player_attr_3),a
+    ld a,%11000001
+    ld (headB_attr_3),a
+    inc a
+    ld (legsA_attr_3),a
+    inc a
+    ld (legsB_attr_3),a
+    ret
+
+
+
+player_idle_start:
+    ld a,(player_animation_state)
+    cp IDLE
+    ret z
+
+    ld a,IDLE
+    ld (player_animation_state),a
+
+    ld a,0 ;wonderboys head pattern
+    add a,PLAYER_DEFAULT_ATTR3
+    ld (player_attr_3),a
+    ld a,%11000001
+    ld (headB_attr_3),a
+    inc a
+    ld (legsA_attr_3),a
+    inc a
+    ld (legsB_attr_3),a
+    ret
+
+
+
 
 player_update_idle:
     ld a,IDLE
