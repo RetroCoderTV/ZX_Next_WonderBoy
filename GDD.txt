@@ -1,0 +1,15 @@
+
+
+General Limits:
+    Max sprite size 32x32 (2x2 patterns) 
+    Max 64 patterns in total
+
+
+
+Game Design Choices:
+    256-colour sprites
+    World Width = 
+
+
+
+
