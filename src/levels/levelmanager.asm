@@ -219,6 +219,8 @@ sl_scrollmax:
     ld a,MAX_SCROLL-1
     ld (current_scroll),a
 
+    
+
     ret
 
 

@@ -34,6 +34,10 @@ legsB_attr_3 db %11000011
 player_animation_timer db 0
 PLAYER_ANIMATION_DELAY equ 4
 
+player_animation_throw_timer db 0
+PLAYER_ANIMATION_THROW_TIME equ 2
+PLAYER_ANIMATION_THROW_DURATION equ 30
+
 
 ;movement states:
 IDLE equ 0x0
@@ -63,7 +67,9 @@ player_walk_direction db RIGHT
 player_jump_direction db DOWN
 player_jump_point db 208
 PLAYER_JUMP_HEIGHT equ 15
+PLAYER_SUPERJUMP_HEIGHT equ 10
 PLAYER_JUMP_ATTR3 equ %11001001
+player_superjump db FALSE
 player_grounded db FALSE
 
 
@@ -319,8 +325,6 @@ player_update:
     ld (player_animation_timer),a
 
  
-
-
     ld a,(keypressed_Q)
     cp TRUE
     call z,player_attacking_start
@@ -342,11 +346,17 @@ player_update:
 
 
 player_attacking_start:
+
     
-    ld a,(player_animation_state)
-    cp ATTACKING
+    ld a,(keypressed_Q_Held)
+    cp TRUE
     jr z, player_update_attacking
+
+    xor a
+    ld (player_animation_throw_timer),a
+
     ;cache previous anim state:
+    ld a,(player_animation_state)
     ld (player_animation_state_prev),a
 
     
@@ -357,20 +367,34 @@ player_attacking_start:
     ret
 
 player_update_attacking:
+    ld a,(player_animation_state_prev)
+    cp JUMPING
+    call z, .handlejumping
+
     ld a,(keypressed_Q_Held)
     cp TRUE
     jr z,.showframe1
     call nz,.showframe2
 
-    call throw_hammer
-    ld a,(player_animation_state_prev)
+    ; throw hammer at set time, then end animation at other set time
+    ld a,(player_animation_throw_timer)
+    inc a
+    ld (player_animation_throw_timer),a
+    cp PLAYER_ANIMATION_THROW_TIME
+    jp z,throw_hammer
+    cp PLAYER_ANIMATION_THROW_DURATION
+    ret c
 
+    ld a,(player_animation_state_prev)
     cp IDLE
     jp z,player_idle_start
     cp WALKING
     jp z,player_idle_start
+    
     ;if state was jumping, have to set state but not allow extra jump
-    ;jp jump/falling
+    ld a,JUMPING
+    ld (player_animation_state),a
+
     ret
     
 .showframe1:
@@ -395,7 +419,20 @@ player_update_attacking:
     inc a
     ld (legsB_attr_3),a
     ret
+.handlejumping:
+    call player_update_jumping.applyforce
+    ld a,(keypressed_A)
+    cp TRUE
+    jp z,plyr_move_left_start
 
+    ld a,(keypressed_D)
+    cp TRUE
+    jp z,plyr_move_right_start
+
+    call check_collision_jumping
+
+
+    ret
 
 
 player_idle_start:
@@ -484,6 +521,10 @@ player_update_walking:
 
     ret
 
+
+
+
+
 player_jump_start:
     ld a,(keypressed_Space_Held)
     cp TRUE
@@ -501,12 +542,22 @@ player_jump_start:
 
     ld a,JUMPING
     ld (player_animation_state),a
-    
+
     ld a,(py)
     ld (player_jump_point),a
 
     ld a,UP
     ld (player_jump_direction),a
+
+    ld a,FALSE
+    ld (player_superjump),a
+
+    ld a,(keypressed_W)
+    cp FALSE
+    jr z,player_update_jumping
+    
+    ld a,TRUE
+    ld (player_superjump),a
 player_update_jumping:  
     ld a,(keypressed_A)
     cp TRUE
@@ -523,11 +574,14 @@ player_update_jumping:
     ld a,(player_jump_point)
     sub PLAYER_JUMP_HEIGHT
     ld b,a
+    ld a,(player_superjump)
+    cp TRUE
+    call z,do_superjump
     ld a,(py)
     cp b
     call c,plyr_set_jump_down
 
-    
+.applyforce:   
     ld a,(player_jump_direction)
     cp UP
     push af
@@ -542,10 +596,15 @@ player_update_jumping:
     
     call apply_velocity
 
+    call check_collision_jumping
    
     ret
 
-
+do_superjump:
+    ld a,b
+    sub PLAYER_SUPERJUMP_HEIGHT
+    ld b,a
+    ret
 
 
 plyr_set_jump_down:
@@ -693,6 +752,7 @@ player_animate_idle:
 plyr_set_idle_firstframe: 
     ld a,WBOY_FIRST_IDLE
     add a,PLAYER_DEFAULT_ATTR3
+
     ld (legsA_attr_3),a
     inc a
     ld (legsB_attr_3),a
@@ -775,9 +835,9 @@ p_wp_r:
 
 
 check_collision_jumping:
-    ld a,(player_animation_state)
-    cp JUMPING
-    ret nz
+    ; ld a,(player_animation_state)
+    ; cp JUMPING
+    ; ret nz
 
     ld a,(player_jump_direction)
     cp DOWN
@@ -1070,6 +1130,7 @@ grounded_false:
 
 
 throw_hammer:
+    ; BREAKPOINT
     ld a,(keypressed_Q_Held)
     cp TRUE
     ret z

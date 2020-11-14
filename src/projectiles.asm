@@ -13,10 +13,10 @@
 ;11=x pixel offset (yes this elements need rearranging)
 ;12=x direction
 projectiles:
-    db OUT_OF_WORLD,0 : dw 0 : db 0, %00000000, %00100100, 20,0,UP,0,0,0
-    db OUT_OF_WORLD,0 : dw 0 : db 0, %00000000, %00100100, 21,0,UP,0,0,0
-    db OUT_OF_WORLD,0 : dw 0 : db 0, %00000000, %00100100, 22,0,UP,0,0,0
-    db OUT_OF_WORLD,0 : dw 0 : db 0, %00000000, %00100100, 22,0,UP,0,0,0
+    db OUT_OF_WORLD,0 : dw 0 : db 0, %00000000, %00010110, 20,0,UP,0,0,0
+    db OUT_OF_WORLD,0 : dw 0 : db 0, %00000000, %00010110, 21,0,UP,0,0,0
+    db OUT_OF_WORLD,0 : dw 0 : db 0, %00000000, %00010110, 22,0,UP,0,0,0
+    db OUT_OF_WORLD,0 : dw 0 : db 0, %00000000, %00010110, 22,0,UP,0,0,0
     db END_OF_ARRAY
 PROJECTILES_DATA_LENGTH equ 13
 
@@ -267,7 +267,7 @@ proj_move_sideways:
 proj_move_left:
  
     ld a,(ix+11)
-    add a,(ix+8)
+    add a,PROJECTILE_X_VELOCITY ;(ix+8)
     ld (ix+11),a 
 
     ld a,(ix+11)
@@ -295,7 +295,7 @@ proj_move_left:
 
 proj_move_right:
     ld a,(ix+11)
-    add a,(ix+8)
+    add a,PROJECTILE_X_VELOCITY;(ix+8)
     ld (ix+11),a 
 
     ld a,(ix+11)
